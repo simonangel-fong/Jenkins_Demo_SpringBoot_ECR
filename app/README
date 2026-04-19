@@ -1,0 +1,6 @@
+```sh
+cd app/hello-world-api
+docker build -t hello-world-api:local .
+
+docker run --rm -d -p 8081:8080 hello-world-api:local
+```

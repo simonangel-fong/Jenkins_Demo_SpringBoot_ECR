@@ -33,9 +33,11 @@ Git push → Jenkins pipeline triggered
 
 ```
 ci-demo-project/
-├── app/                     # Spring Boot app
-│   ├── hello-world-api/
-│   └── Dockerfile          # multi-stage build
+├── app/
+│   └── hello-world-api/   # Spring Boot app
+│       ├── src/           # Spring Boot source code
+│       ├── pom.xml        # Maven config
+│       └── Dockerfile     # multi-stage build
 │
 ├── cicd/
 │   ├── Jenkinsfile         # pipeline definition
@@ -66,24 +68,27 @@ Done when:
 
 ## Step 2 — Docker
 
-Goal: build small, production-style image
+Goal: build a small, clean container image for the Spring Boot app
 
-- multi-stage Dockerfile:
-  - stage 1: build JAR (Maven)
-  - stage 2: runtime (small base image)
-
-- expose app port (e.g., 8080)
+- create a multi-stage Dockerfile
+  - build stage: Maven + JDK
+  - runtime stage: small JRE image
+- copy only the built JAR into the runtime image
+- expose port 8080
+- run app with `java -jar`
 
 Tagging strategy:
 
-- `app:<build_number>`
-- `app:<commit_sha>`
-- `latest` (master branch only)
+- `hello-world-api:<build_number>`
+- `hello-world-api:<commit_sha>`
+- `hello-world-api:latest` (main/master branch only)
 
 Done when:
 
 - image builds locally
-- container runs and `/hello` works
+- container runs successfully
+- `/hello` returns expected response
+- final image does not include Maven/build files
 
 ---
 
