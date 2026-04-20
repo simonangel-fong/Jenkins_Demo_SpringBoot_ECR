@@ -1,0 +1,133 @@
+pipeline {
+    agent any
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+        timeout(time: 20, unit: 'MINUTES')
+    }
+
+    environment {
+        APP_NAME        = 'hello-world-api'
+        APP_DIR         = 'app/hello-world-api'
+        AWS_REGION      = 'ca-central-1'
+        ECR_REGISTRY    = '123456789012.dkr.ecr.ca-central-1.amazonaws.com'
+        ECR_REPOSITORY  = 'hello-world-api'
+        IMAGE_BUILD_TAG = "${BUILD_NUMBER}"
+        IMAGE_SHA_TAG   = "${GIT_COMMIT}".take(7)
+        IMAGE_URI       = "${ECR_REGISTRY}/${ECR_REPOSITORY}"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+                script {
+                    env.SHORT_COMMIT = sh(
+                        script: "git rev-parse --short HEAD",
+                        returnStdout: true
+                    ).trim()
+                }
+            }
+        }
+
+    //     stage('Test') {
+    //         steps {
+    //             dir("${APP_DIR}") {
+    //                 sh 'mvn test'
+    //             }
+    //         }
+    //         post {
+    //             always {
+    //                 junit allowEmptyResults: true, testResults: "${APP_DIR}/target/surefire-reports/*.xml"
+    //             }
+    //         }
+    //     }
+
+    //     stage('Package') {
+    //         steps {
+    //             dir("${APP_DIR}") {
+    //                 sh 'mvn clean package -DskipTests'
+    //             }
+    //         }
+    //     }
+
+    //     stage('Docker Build') {
+    //         steps {
+    //             dir("${APP_DIR}") {
+    //                 sh """
+    //                     docker build \
+    //                       -t ${APP_NAME}:${BUILD_NUMBER} \
+    //                       -t ${APP_NAME}:${SHORT_COMMIT} \
+    //                       .
+    //                 """
+    //             }
+    //         }
+    //     }
+
+    //     stage('Smoke Test') {
+    //         steps {
+    //             script {
+    //                 sh """
+    //                     docker rm -f ${APP_NAME}-smoke || true
+
+    //                     docker run -d \
+    //                       --name ${APP_NAME}-smoke \
+    //                       -p 8080:8080 \
+    //                       ${APP_NAME}:${BUILD_NUMBER}
+
+    //                     chmod +x cicd/smoke-test.sh
+    //                     ./cicd/smoke-test.sh
+    //                 """
+    //             }
+    //         }
+    //     }
+
+    //     stage('Push to ECR') {
+    //         when {
+    //             branch 'master'
+    //         }
+    //         steps {
+    //             withCredentials([
+    //                 [
+    //                     $class: 'AmazonWebServicesCredentialsBinding',
+    //                     credentialsId: 'aws-ecr-creds'
+    //                 ]
+    //             ]) {
+    //                 sh """
+    //                     aws ecr get-login-password --region ${AWS_REGION} | \
+    //                     docker login --username AWS --password-stdin ${ECR_REGISTRY}
+
+    //                     docker tag ${APP_NAME}:${BUILD_NUMBER} ${IMAGE_URI}:${BUILD_NUMBER}
+    //                     docker tag ${APP_NAME}:${BUILD_NUMBER} ${IMAGE_URI}:${SHORT_COMMIT}
+    //                     docker tag ${APP_NAME}:${BUILD_NUMBER} ${IMAGE_URI}:latest
+
+    //                     docker push ${IMAGE_URI}:${BUILD_NUMBER}
+    //                     docker push ${IMAGE_URI}:${SHORT_COMMIT}
+    //                     docker push ${IMAGE_URI}:latest
+    //                 """
+    //             }
+    //         }
+    //     }
+    // }
+
+    post {
+        // always {
+        //     sh """
+        //         docker rm -f ${APP_NAME}-smoke || true
+        //         docker image rm ${APP_NAME}:${BUILD_NUMBER} || true
+        //         docker image rm ${APP_NAME}:${SHORT_COMMIT} || true
+        //         docker image prune -f || true
+        //     """
+        //     archiveArtifacts artifacts: "${APP_DIR}/target/*.jar", allowEmptyArchive: true
+        // }
+
+        success {
+            echo "Pipeline completed successfully."
+        }
+
+        failure {
+            echo "Pipeline failed. Check test, build, or smoke test logs."
+        }
+    }
+}

@@ -2,5 +2,91 @@
 cd app/hello-world-api
 docker build -t hello-world-api:local .
 
-docker run --rm -d -p 8081:8080 hello-world-api:local
+docker run --rm -d --name hello-world-api -p 8081:8080 hello-world-api:local
+
+bash cicd/smoke-test.sh
+# Starting smoke test for image: hello-world-api:local
+# Waiting for application to become ready...
+# Attempt 1/20: app not ready yet
+# Attempt 2/20: app not ready yet
+# Smoke test passed: /health returned OK
+# Cleaning up container...
+```
+
+```sh
+# Create the ECR repository
+aws ecr create-repository \
+  --repository-name hello-world-api \
+  --region ca-central-1 \
+  --image-scanning-configuration scanOnPush=true \
+  --image-tag-mutability IMMUTABLE
+
+# Confirm the repository exists
+aws ecr describe-repositories \
+  --repository-names hello-world-api \
+  --region ca-central-1
+# {
+#     "repository": {
+#         "repositoryArn": "arn:aws:ecr:ca-central-1:<id>:repository/hello-world-api",
+#         "registryId": "<id>",
+#         "repositoryName": "hello-world-api",
+#         "repositoryUri": "<id>.dkr.ecr.ca-central-1.amazonaws.com/hello-world-api",
+#         "createdAt": "2026-04-19T17:17:03.571000-04:00",
+#         "imageTagMutability": "IMMUTABLE",
+#         "imageScanningConfiguration": {
+#             "scanOnPush": true
+#         },
+#         "encryptionConfiguration": {
+#             "encryptionType": "AES256"
+#         }
+#     }
+# }
+
+# Get your account ID
+aws sts get-caller-identity
+{
+    "UserId": "AIDAROFJQB4XFZNSI5GDY",
+    "Account": "<id>",
+    "Arn": "arn:aws:iam::<id>:user/user_name"
+}
+
+# Log Docker in to ECR
+aws ecr get-login-password --region ca-central-1 | docker login \
+  --username AWS \
+  --password-stdin <id>.dkr.ecr.ca-central-1.amazonaws.com
+
+# Tag local image for ECR
+docker tag hello-world-api:local \
+  <id>.dkr.ecr.ca-central-1.amazonaws.com/hello-world-api:demo
+
+# Push the image
+docker push <id>.dkr.ecr.ca-central-1.amazonaws.com/hello-world-api:demo
+
+# Verify the image in ECR
+aws ecr describe-images \
+  --repository-name hello-world-api \
+  --region ca-central-1
+# {
+#     "imageDetails": [
+#         {
+#             "registryId": "<id>",
+#             "repositoryName": "hello-world-api",
+#             "imageDigest": "sha256:12040e4da7a2c7efeb3269d6b45db7450497d8192956b363620b6885defc55c9",
+#             "imageSizeInBytes": 1568,
+#             "imagePushedAt": "2026-04-19T17:21:04.507000-04:00",
+#             "imageManifestMediaType": "application/vnd.oci.image.manifest.v1+json",
+#             "artifactMediaType": "application/vnd.oci.image.config.v1+json",
+#             "imageStatus": "ACTIVE"
+#         },
+#         {
+#             "registryId": "<id>",
+#             "repositoryName": "hello-world-api",
+#             "imageDigest": "sha256:cc5d93add705207b27e1bc758190e096308b0dd9af054f56dc25acacc3445539",
+#             "imageSizeInBytes": 121909713,
+#             "imagePushedAt": "2026-04-19T17:21:04.524000-04:00",
+#             "imageManifestMediaType": "application/vnd.oci.image.manifest.v1+json",
+#             "artifactMediaType": "application/vnd.oci.image.config.v1+json",
+#             "imageStatus": "ACTIVE"
+#         },
+# :
 ```
