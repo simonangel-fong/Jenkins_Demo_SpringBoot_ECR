@@ -32,7 +32,6 @@ pipeline {
             }
         }
 
-
         stage('Test') {
             steps {
                 container('maven') {
@@ -48,8 +47,17 @@ pipeline {
                 }
             }
         }
+    
+        stage('Package') {
+            steps {
+                container('maven') {
+                    dir("${APP_DIR}") {
+                        sh 'mvn clean package -DskipTests'
+                    }
+                }
+            }
+        }    
     }
-
 
     post {
         always {
