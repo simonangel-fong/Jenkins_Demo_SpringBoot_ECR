@@ -119,9 +119,6 @@ pipeline {
         // }
 
         stage('Push to ECR') {
-            when {
-                expression { env.IS_PRIMARY_BRANCH == 'true' }
-            }
             steps {
                 container('dind') {
                     withCredentials([[
