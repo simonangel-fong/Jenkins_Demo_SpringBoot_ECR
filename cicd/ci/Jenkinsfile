@@ -43,9 +43,11 @@ pipeline {
                         env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'master'
                     ).toString()
 
+                    echo "=========================================="
                     echo "Branch: ${env.BRANCH_NAME}"
                     echo "Commit: ${env.SHORT_COMMIT}"
                     echo "Primary branch: ${env.IS_PRIMARY_BRANCH}"
+                    echo "=========================================="
                 }
             }
         }
@@ -56,7 +58,9 @@ pipeline {
                     dir("${APP_DIR}") {
                         sh '''
                             set -eu
+                            echo "Running unit tests..."
                             mvn -B test
+                            echo "✓ Unit tests passed"
                         '''
                     }
                 }
@@ -75,78 +79,130 @@ pipeline {
                     dir("${APP_DIR}") {
                         sh '''
                             set -eu
-
+                            
+                            echo "Waiting for Docker daemon..."
                             for i in $(seq 1 30); do
                                 docker info >/dev/null 2>&1 && break
-                                echo "Waiting for Docker daemon... ($i/30)"
+                                echo "  Attempt $i/30..."
                                 sleep 2
                             done
 
                             docker info >/dev/null 2>&1 || {
-                                echo "Docker daemon never became ready"
+                                echo "ERROR: Docker daemon never became ready"
                                 exit 1
                             }
+                            echo "✓ Docker daemon ready"
 
+                            echo "Building image with tags:"
+                            echo "  - ${IMAGE_URI}:${BUILD_NUMBER}"
+                            echo "  - ${IMAGE_URI}:${SHORT_COMMIT}"
+                            
+                            # Build with BUILD_NUMBER and SHORT_COMMIT tags
                             docker build \
                               -t ${IMAGE_URI}:${BUILD_NUMBER} \
                               -t ${IMAGE_URI}:${SHORT_COMMIT} \
                               .
-
+                            
+                            # Tag as 'latest' only on primary branch
                             if [ "${IS_PRIMARY_BRANCH}" = "true" ]; then
-                                docker tag ${IMAGE_URI}:${SHORT_COMMIT}
+                                echo "  - ${IMAGE_URI}:latest (primary branch)"
+                                docker tag ${IMAGE_URI}:${SHORT_COMMIT} ${IMAGE_URI}:latest
                             fi
+                            
+                            echo "✓ Docker image built successfully"
                         '''
                     }
                 }
             }
         }
 
-        // stage('Smoke Test') {
-        //     steps {
-        //         container('dind') {
-        //             sh '''
-        //                 set -eu
-        //                 chmod +x "${SMOKE_SCRIPT}"
+        stage('Smoke Test') {
+            steps {
+                container('dind') {
+                    sh '''
+                        set -eu
+                        echo "Running smoke test..."
+                        
+                        # Make script executable
+                        chmod +x "${SMOKE_SCRIPT}"
 
-        //                 CONTAINER_NAME="${CONTAINER_NAME}" \
-        //                 HOST_PORT="${HOST_PORT}" \
-        //                 SMOKE_PATH="${SMOKE_PATH}" \
-        //                 EXPECTED_TEXT="${EXPECTED_TEXT}" \
-        //                 "${SMOKE_SCRIPT}" "${IMAGE_URI}:${SHORT_COMMIT}"
-        //             '''
-        //         }
-        //     }
-        // }
+                        # Run smoke test with environment variables
+                        CONTAINER_NAME="${CONTAINER_NAME}" \
+                        HOST_PORT="${HOST_PORT}" \
+                        SMOKE_PATH="${SMOKE_PATH}" \
+                        EXPECTED_TEXT="${EXPECTED_TEXT}" \
+                        "${SMOKE_SCRIPT}" "${IMAGE_URI}:${SHORT_COMMIT}"
+                        
+                        echo "✓ Smoke test passed"
+                    '''
+                }
+            }
+        }
 
-       stage('Push to ECR') { 
-            steps { 
-                container('dind') { 
-                    script { 
-                        retry(2) { 
-                            docker.withRegistry( "https://${ECR_REGISTRY}", "ecr:${AWS_REGION}:aws_credential") { 
-                                def img = docker.image("${IMAGE_URI}:${SHORT_COMMIT}") 
+        stage('Push to ECR') {
+            // Only push images when on master or main branch
+            when {
+                branch pattern: "(main|master)", comparator: "REGEXP"
+            }
+            steps {
+                container('dind') {
+                    script {
+                        echo "Pushing image to ECR (${ECR_REGISTRY})..."
+                        
+                        retry(2) {
+                            docker.withRegistry("https://${ECR_REGISTRY}", "ecr:${AWS_REGION}:${AWS_CREDENTIALS_ID}") {
+                                def img = docker.image("${IMAGE_URI}:${SHORT_COMMIT}")
                                 
-                                img.push() 
-                                img.push("${BUILD_NUMBER}") 
-                                img.push("latest") 
-                            } 
-                        } 
-                    } 
-                } 
-            } 
-        } 
+                                echo "  Pushing tag: ${SHORT_COMMIT}"
+                                img.push()
+                                
+                                echo "  Pushing tag: ${BUILD_NUMBER}"
+                                img.push("${BUILD_NUMBER}")
+                                
+                                echo "  Pushing tag: latest"
+                                img.push("latest")
+                                
+                                echo "✓ All tags pushed successfully to ECR"
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
     
     post {
         always {
             container('dind') {
                 sh '''
-                    set +e
-                    docker rm -f "${CONTAINER_NAME}" >/dev/null 2>&1 || true
-                    docker rmi "${IMAGE_URI}:${SHORT_COMMIT}" >/dev/null 2>&1 || true
-                    docker rmi "${IMAGE_URI}:${BUILD_NUMBER}" >/dev/null 2>&1 || true
-                    docker rmi "${IMAGE_URI}:latest" >/dev/null 2>&1 || true
+                    set +e  # Don't fail on cleanup errors
+                    
+                    echo "=========================================="
+                    echo "Cleanup: Removing Docker resources..."
+                    echo "=========================================="
+                    
+                    # Remove test container (suppress "No such container" errors)
+                    docker rm -f "${CONTAINER_NAME}" 2>&1 | grep -v "No such container" || true
+                    echo "  ✓ Removed container: ${CONTAINER_NAME}"
+                    
+                    # Remove temporary images (suppress "No such image" errors)
+                    docker rmi "${IMAGE_URI}:${SHORT_COMMIT}" 2>&1 | grep -v "No such image" || true
+                    echo "  ✓ Removed image: ${SHORT_COMMIT}"
+                    
+                    docker rmi "${IMAGE_URI}:${BUILD_NUMBER}" 2>&1 | grep -v "No such image" || true
+                    echo "  ✓ Removed image: ${BUILD_NUMBER}"
+                    
+                    # Only remove latest tag if it was created (primary branch)
+                    if [ "${IS_PRIMARY_BRANCH}" = "true" ]; then
+                        docker rmi "${IMAGE_URI}:latest" 2>&1 | grep -v "No such image" || true
+                        echo "  ✓ Removed image: latest"
+                    fi
+                    
+                    # Logout from ECR
                     docker logout "${ECR_REGISTRY}" >/dev/null 2>&1 || true
+                    echo "  ✓ Logged out from ECR"
+                    
+                    echo "✓ Cleanup complete"
                 '''
             }
         }
@@ -154,18 +210,42 @@ pipeline {
         success {
             script {
                 if (env.IS_PRIMARY_BRANCH == 'true') {
-                    echo "Image pushed successfully:"
-                    echo "- ${IMAGE_URI}:${env.SHORT_COMMIT}"
-                    echo "- ${IMAGE_URI}:${env.BUILD_NUMBER}"
-                    echo "- ${IMAGE_URI}:latest"
+                    echo "=========================================="
+                    echo "✅ PIPELINE SUCCESS - Image pushed to ECR:"
+                    echo "=========================================="
+                    echo "Repository: ${ECR_REPOSITORY}"
+                    echo "Tags:"
+                    echo "  - ${IMAGE_URI}:${SHORT_COMMIT}"
+                    echo "  - ${IMAGE_URI}:${BUILD_NUMBER}"
+                    echo "  - ${IMAGE_URI}:latest"
+                    echo "=========================================="
                 } else {
-                    echo "Build, test, and smoke test passed. Push skipped for branch: ${env.BRANCH_NAME}"
+                    echo "=========================================="
+                    echo "✅ PIPELINE SUCCESS - Build validated:"
+                    echo "=========================================="
+                    echo "Branch: ${env.BRANCH_NAME} (not primary)"
+                    echo "Build, test, and smoke test all passed."
+                    echo "Image push skipped (only runs on main/master)."
+                    echo "=========================================="
                 }
             }
         }
 
         failure {
-            echo 'Pipeline failed. Check logs above.'
+            echo "=========================================="
+            echo "❌ PIPELINE FAILURE"
+            echo "=========================================="
+            echo "Check the logs above for details."
+            echo "Common issues:"
+            echo "  - Unit tests failed (see Test stage)"
+            echo "  - Docker build failed (check Dockerfile)"
+            echo "  - Smoke test failed (container/app not responding)"
+            echo "  - ECR push failed (AWS credentials or network)"
+            echo "=========================================="
+        }
+
+        unstable {
+            echo "⚠️ Pipeline unstable - check logs for warnings"
         }
     }
 }
