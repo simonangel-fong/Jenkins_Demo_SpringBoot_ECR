@@ -36,7 +36,7 @@ controller:
       pipeline-job: |
         jobs:
           - script: |
-              pipelineJob('CI Job: hello-world-api') {
+              pipelineJob('ci hello-world-api') {
                 description('CI Pipeline job for project hello-world-api')
 
                 definition {
