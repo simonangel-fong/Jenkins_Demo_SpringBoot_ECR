@@ -1,5 +1,7 @@
 pipeline {
-    agent any
+    agent {
+        label 'jenkins-agent-maven'
+    }
 
     options {
         timestamps()
@@ -31,96 +33,96 @@ pipeline {
             }
         }
 
-    //     stage('Test') {
-    //         steps {
-    //             dir("${APP_DIR}") {
-    //                 sh 'mvn test'
-    //             }
-    //         }
-    //         post {
-    //             always {
-    //                 junit allowEmptyResults: true, testResults: "${APP_DIR}/target/surefire-reports/*.xml"
-    //             }
-    //         }
-    //     }
+        stage('Test') {
+            steps {
+                dir("${APP_DIR}") {
+                    sh 'mvn test'
+                }
+            }
+            post {
+                always {
+                    junit allowEmptyResults: true, testResults: "${APP_DIR}/target/surefire-reports/*.xml"
+                }
+            }
+        }
 
-    //     stage('Package') {
-    //         steps {
-    //             dir("${APP_DIR}") {
-    //                 sh 'mvn clean package -DskipTests'
-    //             }
-    //         }
-    //     }
+        stage('Package') {
+            steps {
+                dir("${APP_DIR}") {
+                    sh 'mvn clean package -DskipTests'
+                }
+            }
+        }
 
-    //     stage('Docker Build') {
-    //         steps {
-    //             dir("${APP_DIR}") {
-    //                 sh """
-    //                     docker build \
-    //                       -t ${APP_NAME}:${BUILD_NUMBER} \
-    //                       -t ${APP_NAME}:${SHORT_COMMIT} \
-    //                       .
-    //                 """
-    //             }
-    //         }
-    //     }
+        stage('Docker Build') {
+            steps {
+                dir("${APP_DIR}") {
+                    sh """
+                        docker build \
+                          -t ${APP_NAME}:${BUILD_NUMBER} \
+                          -t ${APP_NAME}:${SHORT_COMMIT} \
+                          .
+                    """
+                }
+            }
+        }
 
-    //     stage('Smoke Test') {
-    //         steps {
-    //             script {
-    //                 sh """
-    //                     docker rm -f ${APP_NAME}-smoke || true
+        stage('Smoke Test') {
+            steps {
+                script {
+                    sh """
+                        docker rm -f ${APP_NAME}-smoke || true
 
-    //                     docker run -d \
-    //                       --name ${APP_NAME}-smoke \
-    //                       -p 8080:8080 \
-    //                       ${APP_NAME}:${BUILD_NUMBER}
+                        docker run -d \
+                          --name ${APP_NAME}-smoke \
+                          -p 8080:8080 \
+                          ${APP_NAME}:${BUILD_NUMBER}
 
-    //                     chmod +x cicd/smoke-test.sh
-    //                     ./cicd/smoke-test.sh
-    //                 """
-    //             }
-    //         }
-    //     }
+                        chmod +x cicd/smoke-test.sh
+                        ./cicd/smoke-test.sh
+                    """
+                }
+            }
+        }
 
-    //     stage('Push to ECR') {
-    //         when {
-    //             branch 'master'
-    //         }
-    //         steps {
-    //             withCredentials([
-    //                 [
-    //                     $class: 'AmazonWebServicesCredentialsBinding',
-    //                     credentialsId: 'aws-ecr-creds'
-    //                 ]
-    //             ]) {
-    //                 sh """
-    //                     aws ecr get-login-password --region ${AWS_REGION} | \
-    //                     docker login --username AWS --password-stdin ${ECR_REGISTRY}
+        stage('Push to ECR') {
+            when {
+                branch 'master'
+            }
+            steps {
+                withCredentials([
+                    [
+                        $class: 'AmazonWebServicesCredentialsBinding',
+                        credentialsId: 'aws-ecr-creds'
+                    ]
+                ]) {
+                    sh """
+                        aws ecr get-login-password --region ${AWS_REGION} | \
+                        docker login --username AWS --password-stdin ${ECR_REGISTRY}
 
-    //                     docker tag ${APP_NAME}:${BUILD_NUMBER} ${IMAGE_URI}:${BUILD_NUMBER}
-    //                     docker tag ${APP_NAME}:${BUILD_NUMBER} ${IMAGE_URI}:${SHORT_COMMIT}
-    //                     docker tag ${APP_NAME}:${BUILD_NUMBER} ${IMAGE_URI}:latest
+                        docker tag ${APP_NAME}:${BUILD_NUMBER} ${IMAGE_URI}:${BUILD_NUMBER}
+                        docker tag ${APP_NAME}:${BUILD_NUMBER} ${IMAGE_URI}:${SHORT_COMMIT}
+                        docker tag ${APP_NAME}:${BUILD_NUMBER} ${IMAGE_URI}:latest
 
-    //                     docker push ${IMAGE_URI}:${BUILD_NUMBER}
-    //                     docker push ${IMAGE_URI}:${SHORT_COMMIT}
-    //                     docker push ${IMAGE_URI}:latest
-    //                 """
-    //             }
-    //         }
-    //     }
-    // }
+                        docker push ${IMAGE_URI}:${BUILD_NUMBER}
+                        docker push ${IMAGE_URI}:${SHORT_COMMIT}
+                        docker push ${IMAGE_URI}:latest
+                    """
+                }
+            }
+        }
+    }
 
     post {
-        // always {
-        //     sh """
-        //         docker rm -f ${APP_NAME}-smoke || true
-        //         docker image rm ${APP_NAME}:${BUILD_NUMBER} || true
-        //         docker image rm ${APP_NAME}:${SHORT_COMMIT} || true
-        //         docker image prune -f || true
-        //     """
-        //     archiveArtifacts artifacts: "${APP_DIR}/target/*.jar", allowEmptyArchive: true
-        // }
+        always {
+            sh """
+                docker rm -f ${APP_NAME}-smoke || true
+                docker image rm ${APP_NAME}:${BUILD_NUMBER} || true
+                docker image rm ${APP_NAME}:${SHORT_COMMIT} || true
+                docker image prune -f || true
+            """
+            archiveArtifacts artifacts: "${APP_DIR}/target/*.jar", allowEmptyArchive: true
+        }
 
         success {
             echo "Pipeline completed successfully."
