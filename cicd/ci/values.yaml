@@ -14,6 +14,7 @@ controller:
     - git
     - configuration-as-code
     - job-dsl
+    - junit
 
   initializeOnce: true
 
@@ -86,3 +87,9 @@ agent:
             args: "--host=unix:///var/run/docker.sock"
             ttyEnabled: true
             privileged: true
+
+          - name: aws
+            image: amazon/aws-cli:2.15.0
+            command: "/bin/sh -c"
+            args: "cat"
+            ttyEnabled: true
