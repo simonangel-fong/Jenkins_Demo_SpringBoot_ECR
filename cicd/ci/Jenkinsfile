@@ -100,6 +100,23 @@ pipeline {
                 container('dind') {
                     sh '''
                         set -eu
+                        chmod +x "${SMOKE_SCRIPT}"
+
+                        CONTAINER_NAME="${CONTAINER_NAME}" \
+                        HOST_PORT="${HOST_PORT}" \
+                        SMOKE_PATH="${SMOKE_PATH}" \
+                        EXPECTED_TEXT="${EXPECTED_TEXT}" \
+                        "${SMOKE_SCRIPT}" "${IMAGE_URI}:${SHORT_COMMIT}"
+                    '''
+                }
+            }
+        }
+
+        stage('Smoke Test') {
+            steps {
+                container('dind') {
+                    sh '''
+                        set -eu
 
                         docker rm -f ${CONTAINER_NAME} >/dev/null 2>&1 || true
 
