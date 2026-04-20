@@ -32,4 +32,19 @@ pipeline {
             }
         }
     }
+
+    stage('Test') {
+        steps {
+            dir("${APP_DIR}") {
+                sh 'mvn test'
+            }
+        }
+        post {
+            always {
+                junit allowEmptyResults: true, testResults: "${APP_DIR}/target/surefire-reports/*.xml"
+            }
+        }
+    }
+
+
 }
