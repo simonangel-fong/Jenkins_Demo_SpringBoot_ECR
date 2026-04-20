@@ -1,5 +1,8 @@
 ```sh
 cd app/hello-world-api
+mvn test
+
+cd app/hello-world-api
 docker build -t hello-world-api:local .
 
 docker run --rm -d --name hello-world-api -p 8081:8080 hello-world-api:local

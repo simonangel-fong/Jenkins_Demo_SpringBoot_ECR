@@ -50,12 +50,6 @@ pipeline {
 
     post {
         always {
-            sh """
-                docker rm -f ${APP_NAME}-smoke || true
-                docker image rm ${APP_NAME}:${BUILD_NUMBER} || true
-                docker image rm ${APP_NAME}:${SHORT_COMMIT} || true
-                docker image prune -f || true
-            """
             archiveArtifacts artifacts: "${APP_DIR}/target/*.jar", allowEmptyArchive: true
         }
 
