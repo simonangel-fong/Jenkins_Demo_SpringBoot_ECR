@@ -6,10 +6,12 @@ helm upgrade --install jenkins jenkins/jenkins -f values.yaml
 
 kubectl exec --namespace default -it svc/jenkins -c jenkins -- /bin/cat /run/secrets/additional/chart-admin-password
 
+helm uninstall jenkins
+
 ```
 
 
 - repo
   - https://github.com/simonangel-fong/Jenkins_Demo_SpringBoot_ECR.git
   - master
-  - cicd\ci\Jenkinsfile
+  - cicd/ci/Jenkinsfile

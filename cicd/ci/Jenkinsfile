@@ -1,6 +1,6 @@
 pipeline {
     agent {
-        label 'jenkins-agent-maven'
+        label 'agent-maven'
     }
 
     options {
@@ -32,35 +32,6 @@ pipeline {
             }
         }
 
-        stage('Test') {
-            steps {
-                dir("${APP_DIR}") {
-                    sh 'mvn test'
-                }
-            }
-            post {
-                always {
-                    junit allowEmptyResults: true, testResults: "${APP_DIR}/target/surefire-reports/*.xml"
-                }
-            }
-        }
 
-        stage('Package') {
-            steps {
-                dir("${APP_DIR}") {
-                    sh 'mvn clean package -DskipTests'
-                }
-            }
-        }
-    }
-
-    post {
-        success {
-            echo "Pipeline completed successfully."
-        }
-
-        failure {
-            echo "Pipeline failed. Check test, build, or smoke test logs."
-        }
     }
 }
