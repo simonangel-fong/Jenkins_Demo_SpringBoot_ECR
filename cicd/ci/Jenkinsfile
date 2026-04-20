@@ -118,33 +118,26 @@ pipeline {
         //     }
         // }
 
-        stage('Push to ECR') {
-            steps {
-                container('dind') {
-                    withCredentials([[
-                        $class: 'AmazonWebServicesCredentialsBinding',
-                        credentialsId: "${AWS_CREDENTIALS_ID}",
-                        accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-                        secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
-                    ]]) {
-                        sh '''
-                            set -eu
-
-                            aws ecr get-login-password --region "${AWS_REGION}" \
-                              | docker login \
-                                  --username AWS \
-                                  --password-stdin "${ECR_REGISTRY}"
-
-                            docker push "${IMAGE_URI}:${SHORT_COMMIT}"
-                            docker push "${IMAGE_URI}:${BUILD_NUMBER}"
-                            docker push "${IMAGE_URI}:latest"
-                        '''
-                    }
-                }
-            }
-        }
+       stage('Push to ECR') { 
+        when { anyOf { branch 'main' branch 'master' } } 
+            steps { 
+                container('dind') { 
+                    script { 
+                        retry(2) { 
+                            docker.withRegistry( "https://${ECR_REGISTRY}", "ecr:${AWS_REGION}:aws_credential") { 
+                                def img = docker.image("${IMAGE_URI}:${SHORT_COMMIT}") 
+                                
+                                img.push() 
+                                img.push("${BUILD_NUMBER}") 
+                                img.push("latest") 
+                            } 
+                        } 
+                    } 
+                } 
+            } 
+        } 
     }
-
+    
     post {
         always {
             container('dind') {
