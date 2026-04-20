@@ -18,18 +18,16 @@ pipeline {
     }
 
     stages {
-        stage('Checkout') {
-            steps {
-                container('maven') {
-                    checkout scm
-                    script {
-                        env.SHORT_COMMIT = sh(
-                            script: 'git rev-parse --short HEAD',
-                            returnStdout: true
-                        ).trim()
-                    }
-                }
-            }
+        stage('Checkout') { 
+            steps { 
+                checkout scm 
+                script { 
+                    env.SHORT_COMMIT = sh( 
+                        script: "git rev-parse --short HEAD", 
+                        returnStdout: true 
+                    ).trim() 
+                } 
+            } 
         }
 
         stage('Test') {
