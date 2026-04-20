@@ -25,7 +25,7 @@ pipeline {
 
         CONTAINER_NAME     = 'hello-world-api-smoke'
         HOST_PORT          = '18080'
-        SMOKE_PATH         = '/actuator/health'
+        SMOKE_PATH         = '/health'
         EXPECTED_TEXT      = '"status":"UP"'
     }
 
