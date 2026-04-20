@@ -25,8 +25,11 @@ pipeline {
 
         CONTAINER_NAME     = 'hello-world-api-smoke'
         HOST_PORT          = '18080'
+        CONTAINER_PORT     = '8080'
         SMOKE_PATH         = '/health'
         EXPECTED_TEXT      = '"status":"UP"'
+        MAX_RETRIES        = '30'
+        SLEEP_SECONDS      = '2'
     }
 
     stages {
@@ -127,10 +130,14 @@ pipeline {
                         chmod +x "${SMOKE_SCRIPT}"
 
                         # Run smoke test with environment variables
+                        # Note: CONTAINER_PORT is used by the script to connect directly to container IP
                         CONTAINER_NAME="${CONTAINER_NAME}" \
                         HOST_PORT="${HOST_PORT}" \
+                        CONTAINER_PORT="${CONTAINER_PORT}" \
                         SMOKE_PATH="${SMOKE_PATH}" \
                         EXPECTED_TEXT="${EXPECTED_TEXT}" \
+                        MAX_RETRIES="${MAX_RETRIES}" \
+                        SLEEP_SECONDS="${SLEEP_SECONDS}" \
                         "${SMOKE_SCRIPT}" "${IMAGE_URI}:${SHORT_COMMIT}"
                         
                         echo "✓ Smoke test passed"
@@ -186,7 +193,7 @@ pipeline {
                     echo "  ✓ Removed container: ${CONTAINER_NAME}"
                     
                     # Remove temporary images (suppress "No such image" errors)
-                    docker rmi "${IMAGE_URI}:${SHORT_COMMIT}" 2>&1 | grep -v "No such image" || true
+                    docker rmi "${IMAGE_URI}:${SHORT_PORT}" 2>&1 | grep -v "No such image" || true
                     echo "  ✓ Removed image: ${SHORT_COMMIT}"
                     
                     docker rmi "${IMAGE_URI}:${BUILD_NUMBER}" 2>&1 | grep -v "No such image" || true
