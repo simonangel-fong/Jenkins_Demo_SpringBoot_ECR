@@ -77,7 +77,7 @@ pipeline {
                 branch 'master'
             }
             steps {
-                container('dind') {
+                container('aws') {
                     withCredentials([[
                         $class: 'AmazonWebServicesCredentialsBinding',
                         credentialsId: 'aws-credentials'
