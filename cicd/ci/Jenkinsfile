@@ -93,7 +93,7 @@ pipeline {
                               .
 
                             if [ "${IS_PRIMARY_BRANCH}" = "true" ]; then
-                                docker tag ${IMAGE_URI}:${SHORT_COMMIT} ${IMAGE_URI}:latest
+                                docker tag ${IMAGE_URI}:${SHORT_COMMIT}
                             fi
                         '''
                     }
