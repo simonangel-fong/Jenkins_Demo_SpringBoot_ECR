@@ -6,6 +6,7 @@ pipeline {
     options {
         disableConcurrentBuilds()
         timeout(time: 20, unit: 'MINUTES')
+        timestamps()
     }
 
     environment {
@@ -15,6 +16,7 @@ pipeline {
         ECR_REGISTRY   = '099139718958.dkr.ecr.ca-central-1.amazonaws.com'
         ECR_REPOSITORY = 'hello-world-api'
         IMAGE_URI      = "${ECR_REGISTRY}/${ECR_REPOSITORY}"
+        CONTAINER_NAME = 'hello-world-api-smoke'
     }
 
     stages {
@@ -23,9 +25,17 @@ pipeline {
                 checkout scm
                 script {
                     env.SHORT_COMMIT = sh(
-                        script: "git rev-parse --short HEAD",
+                        script: 'git rev-parse --short HEAD',
                         returnStdout: true
                     ).trim()
+
+                    env.IS_PRIMARY_BRANCH = (
+                        env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'master'
+                    ).toString()
+
+                    echo "Branch: ${env.BRANCH_NAME}"
+                    echo "Commit: ${env.SHORT_COMMIT}"
+                    echo "Primary branch: ${env.IS_PRIMARY_BRANCH}"
                 }
             }
         }
@@ -35,8 +45,8 @@ pipeline {
                 container('maven') {
                     dir("${APP_DIR}") {
                         sh '''
-                            set -eux
-                            mvn -B test        # -B = batch/non-interactive, cleaner logs
+                            set -eu
+                            mvn -B test
                         '''
                     }
                 }
@@ -54,40 +64,85 @@ pipeline {
                 container('dind') {
                     dir("${APP_DIR}") {
                         sh '''
-                            set -eux
+                            set -eu
 
-                            # Wait for daemon — with a timeout so it doesn't hang forever
                             for i in $(seq 1 30); do
                                 docker info >/dev/null 2>&1 && break
                                 echo "Waiting for Docker daemon... ($i/30)"
                                 sleep 2
                             done
-                            docker info >/dev/null 2>&1 || { echo "Docker daemon never became ready"; exit 1; }
+
+                            docker info >/dev/null 2>&1 || {
+                                echo "Docker daemon never became ready"
+                                exit 1
+                            }
+
+                            # Optional cache warm-up; do not fail if image does not exist
+                            docker pull ${IMAGE_URI}:latest || true
 
                             docker build \
                               --cache-from ${IMAGE_URI}:latest \
                               -t ${IMAGE_URI}:${BUILD_NUMBER} \
                               -t ${IMAGE_URI}:${SHORT_COMMIT} \
-                              -t ${IMAGE_URI}:latest \
                               .
+                            
+                            if [ "${IS_PRIMARY_BRANCH}" = "true" ]; then
+                                docker tag ${IMAGE_URI}:${SHORT_COMMIT} ${IMAGE_URI}:latest
+                            fi
                         '''
                     }
                 }
             }
         }
 
+        stage('Smoke Test') {
+            steps {
+                container('dind') {
+                    sh '''
+                        set -eu
+
+                        docker rm -f ${CONTAINER_NAME} >/dev/null 2>&1 || true
+
+                        docker run -d \
+                          --name ${CONTAINER_NAME} \
+                          -p 8080:8080 \
+                          ${IMAGE_URI}:${SHORT_COMMIT}
+
+                        # Wait for app startup
+                        for i in $(seq 1 30); do
+                            if curl -fsS http://127.0.0.1:8080/hello >/dev/null 2>&1; then
+                                break
+                            fi
+                            echo "Waiting for application... ($i/30)"
+                            sleep 2
+                        done
+
+                        curl -fsS http://127.0.0.1:8080/hello
+                    '''
+                }
+            }
+        }
+
         stage('Push to ECR') {
+            when {
+                anyOf {
+                    branch 'main'
+                    branch 'master'
+                }
+            }
             steps {
                 container('dind') {
                     script {
-                        docker.withRegistry(
-                            "https://${ECR_REGISTRY}",
-                            "ecr:${AWS_REGION}:aws_credential"   // ecr: prefix is key
-                        ) {
-                            def img = docker.image("${IMAGE_URI}:${SHORT_COMMIT}")
-                            img.push()
-                            img.push("${BUILD_NUMBER}")
-                            img.push("latest")
+                        retry(2) {
+                            docker.withRegistry(
+                                "https://${ECR_REGISTRY}",
+                                "ecr:${AWS_REGION}:aws_credential"
+                            ) {
+                                def img = docker.image("${IMAGE_URI}:${SHORT_COMMIT}")
+                                img.push()
+                                img.push("${BUILD_NUMBER}")
+                                img.push("latest")
+                            }
                         }
                     }
                 }
@@ -96,9 +151,28 @@ pipeline {
     }
 
     post {
-        success {
-            echo "Image pushed: ${IMAGE_URI}:${env.SHORT_COMMIT}"
+        always {
+            container('dind') {
+                sh '''
+                    set +e
+                    docker rm -f ${CONTAINER_NAME} >/dev/null 2>&1 || true
+                    docker rmi ${IMAGE_URI}:${SHORT_COMMIT} >/dev/null 2>&1 || true
+                    docker rmi ${IMAGE_URI}:${BUILD_NUMBER} >/dev/null 2>&1 || true
+                    docker rmi ${IMAGE_URI}:latest >/dev/null 2>&1 || true
+                '''
+            }
         }
+
+        success {
+            script {
+                if (env.IS_PRIMARY_BRANCH == 'true') {
+                    echo "Image pushed: ${IMAGE_URI}:${env.SHORT_COMMIT}"
+                } else {
+                    echo "Build/test/smoke passed. Push skipped for branch: ${env.BRANCH_NAME}"
+                }
+            }
+        }
+
         failure {
             echo 'Pipeline failed. Check logs above.'
         }

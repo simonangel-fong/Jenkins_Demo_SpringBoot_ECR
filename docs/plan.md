@@ -136,22 +136,23 @@ Goal: implement CI pipeline
 
 Stages:
 
+```txt
+Checkout → Test → Docker Build → Smoke Test → Push to ECR (main/master only) → Post/Cleanup
+```
+
 1. **Checkout**
 2. **Test**
    - run `mvn test`
 
-3. **Build**
-   - package JAR
-
-4. **Docker Build**
-5. **Smoke Test**
+3. **Docker Build**
+4. **Smoke Test**
    - run container
    - test endpoint
 
-6. **Push to ECR**
+5. **Push to ECR**
    - only on `master` branch
 
-7. **Post**
+6. **Post**
    - archive test results
    - cleanup containers/images
 
