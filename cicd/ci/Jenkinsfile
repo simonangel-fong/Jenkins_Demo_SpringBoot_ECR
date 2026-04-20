@@ -4,19 +4,29 @@ pipeline {
     }
 
     options {
+        skipDefaultCheckout(true)
         disableConcurrentBuilds()
         timeout(time: 20, unit: 'MINUTES')
         timestamps()
+        buildDiscarder(logRotator(numToKeepStr: '20'))
     }
 
     environment {
-        APP_NAME       = 'hello-world-api'
-        APP_DIR        = 'app/hello-world-api'
-        AWS_REGION     = 'ca-central-1'
-        ECR_REGISTRY   = '099139718958.dkr.ecr.ca-central-1.amazonaws.com'
-        ECR_REPOSITORY = 'hello-world-api'
-        IMAGE_URI      = "${ECR_REGISTRY}/${ECR_REPOSITORY}"
-        CONTAINER_NAME = 'hello-world-api-smoke'
+        APP_NAME           = 'hello-world-api'
+        APP_DIR            = 'app/hello-world-api'
+        SMOKE_SCRIPT       = 'cicd/smoke-test.sh'
+
+        AWS_REGION         = 'ca-central-1'
+        AWS_CREDENTIALS_ID = 'aws_credential'
+
+        ECR_REGISTRY       = '099139718958.dkr.ecr.ca-central-1.amazonaws.com'
+        ECR_REPOSITORY     = 'hello-world-api'
+        IMAGE_URI          = "${ECR_REGISTRY}/${ECR_REPOSITORY}"
+
+        CONTAINER_NAME     = 'hello-world-api-smoke'
+        HOST_PORT          = '18080'
+        SMOKE_PATH         = '/actuator/health'
+        EXPECTED_TEXT      = '"status":"UP"'
     }
 
     stages {
@@ -77,15 +87,11 @@ pipeline {
                                 exit 1
                             }
 
-                            # Optional cache warm-up; do not fail if image does not exist
-                            docker pull ${IMAGE_URI}:latest || true
-
                             docker build \
-                              --cache-from ${IMAGE_URI}:latest \
                               -t ${IMAGE_URI}:${BUILD_NUMBER} \
                               -t ${IMAGE_URI}:${SHORT_COMMIT} \
                               .
-                            
+
                             if [ "${IS_PRIMARY_BRANCH}" = "true" ]; then
                                 docker tag ${IMAGE_URI}:${SHORT_COMMIT} ${IMAGE_URI}:latest
                             fi
@@ -112,55 +118,30 @@ pipeline {
             }
         }
 
-        stage('Smoke Test') {
-            steps {
-                container('dind') {
-                    sh '''
-                        set -eu
-
-                        docker rm -f ${CONTAINER_NAME} >/dev/null 2>&1 || true
-
-                        docker run -d \
-                          --name ${CONTAINER_NAME} \
-                          -p 8080:8080 \
-                          ${IMAGE_URI}:${SHORT_COMMIT}
-
-                        # Wait for app startup
-                        for i in $(seq 1 30); do
-                            if curl -fsS http://127.0.0.1:8080/hello >/dev/null 2>&1; then
-                                break
-                            fi
-                            echo "Waiting for application... ($i/30)"
-                            sleep 2
-                        done
-
-                        curl -fsS http://127.0.0.1:8080/hello
-                    '''
-                }
-            }
-        }
-
         stage('Push to ECR') {
             when {
-                anyOf {
-                    branch 'main'
-                    branch 'master'
-                }
+                expression { env.IS_PRIMARY_BRANCH == 'true' }
             }
             steps {
                 container('dind') {
-                    script {
-                        retry(2) {
-                            docker.withRegistry(
-                                "https://${ECR_REGISTRY}",
-                                "ecr:${AWS_REGION}:aws_credential"
-                            ) {
-                                def img = docker.image("${IMAGE_URI}:${SHORT_COMMIT}")
-                                img.push()
-                                img.push("${BUILD_NUMBER}")
-                                img.push("latest")
-                            }
-                        }
+                    withCredentials([[
+                        $class: 'AmazonWebServicesCredentialsBinding',
+                        credentialsId: "${AWS_CREDENTIALS_ID}",
+                        accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                        secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+                    ]]) {
+                        sh '''
+                            set -eu
+
+                            aws ecr get-login-password --region "${AWS_REGION}" \
+                              | docker login \
+                                  --username AWS \
+                                  --password-stdin "${ECR_REGISTRY}"
+
+                            docker push "${IMAGE_URI}:${SHORT_COMMIT}"
+                            docker push "${IMAGE_URI}:${BUILD_NUMBER}"
+                            docker push "${IMAGE_URI}:latest"
+                        '''
                     }
                 }
             }
@@ -172,10 +153,11 @@ pipeline {
             container('dind') {
                 sh '''
                     set +e
-                    docker rm -f ${CONTAINER_NAME} >/dev/null 2>&1 || true
-                    docker rmi ${IMAGE_URI}:${SHORT_COMMIT} >/dev/null 2>&1 || true
-                    docker rmi ${IMAGE_URI}:${BUILD_NUMBER} >/dev/null 2>&1 || true
-                    docker rmi ${IMAGE_URI}:latest >/dev/null 2>&1 || true
+                    docker rm -f "${CONTAINER_NAME}" >/dev/null 2>&1 || true
+                    docker rmi "${IMAGE_URI}:${SHORT_COMMIT}" >/dev/null 2>&1 || true
+                    docker rmi "${IMAGE_URI}:${BUILD_NUMBER}" >/dev/null 2>&1 || true
+                    docker rmi "${IMAGE_URI}:latest" >/dev/null 2>&1 || true
+                    docker logout "${ECR_REGISTRY}" >/dev/null 2>&1 || true
                 '''
             }
         }
@@ -183,9 +165,12 @@ pipeline {
         success {
             script {
                 if (env.IS_PRIMARY_BRANCH == 'true') {
-                    echo "Image pushed: ${IMAGE_URI}:${env.SHORT_COMMIT}"
+                    echo "Image pushed successfully:"
+                    echo "- ${IMAGE_URI}:${env.SHORT_COMMIT}"
+                    echo "- ${IMAGE_URI}:${env.BUILD_NUMBER}"
+                    echo "- ${IMAGE_URI}:latest"
                 } else {
-                    echo "Build/test/smoke passed. Push skipped for branch: ${env.BRANCH_NAME}"
+                    echo "Build, test, and smoke test passed. Push skipped for branch: ${env.BRANCH_NAME}"
                 }
             }
         }
