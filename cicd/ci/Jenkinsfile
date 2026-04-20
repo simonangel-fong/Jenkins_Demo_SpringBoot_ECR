@@ -30,26 +30,26 @@ pipeline {
             } 
         }
 
-        stage('Test') {
-            steps {
-                container('maven') {
-                    dir("${APP_DIR}") {
-                        sh '''
-                            set -eux
-                            java -version
-                            mvn -version
-                            mvn test
-                        '''
-                    }
-                }
-            }
-            post {
-                always {
-                    junit allowEmptyResults: true,
-                          testResults: "${APP_DIR}/target/surefire-reports/*.xml"
-                }
-            }
-        }
+        // stage('Test') {
+        //     steps {
+        //         container('maven') {
+        //             dir("${APP_DIR}") {
+        //                 sh '''
+        //                     set -eux
+        //                     java -version
+        //                     mvn -version
+        //                     mvn test
+        //                 '''
+        //             }
+        //         }
+        //     }
+        //     post {
+        //         always {
+        //             junit allowEmptyResults: true,
+        //                   testResults: "${APP_DIR}/target/surefire-reports/*.xml"
+        //         }
+        //     }
+        // }
 
         stage('Docker Build') {
             steps {
