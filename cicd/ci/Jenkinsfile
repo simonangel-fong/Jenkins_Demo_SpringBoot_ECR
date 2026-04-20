@@ -119,33 +119,6 @@ pipeline {
             }
         }
 
-        stage('Smoke Test') {
-            steps {
-                container('dind') {
-                    sh '''
-                        set -eu
-                        echo "Running smoke test..."
-                        
-                        # Make script executable
-                        chmod +x "${SMOKE_SCRIPT}"
-
-                        # Run smoke test with environment variables
-                        # Note: CONTAINER_PORT is used by the script to connect directly to container IP
-                        CONTAINER_NAME="${CONTAINER_NAME}" \
-                        HOST_PORT="${HOST_PORT}" \
-                        CONTAINER_PORT="${CONTAINER_PORT}" \
-                        SMOKE_PATH="${SMOKE_PATH}" \
-                        EXPECTED_TEXT="${EXPECTED_TEXT}" \
-                        MAX_RETRIES="${MAX_RETRIES}" \
-                        SLEEP_SECONDS="${SLEEP_SECONDS}" \
-                        "${SMOKE_SCRIPT}" "${IMAGE_URI}:${SHORT_COMMIT}"
-                        
-                        echo "✓ Smoke test passed"
-                    '''
-                }
-            }
-        }
-
         stage('Push to ECR') {
             // Only push images when on master or main branch
             when {

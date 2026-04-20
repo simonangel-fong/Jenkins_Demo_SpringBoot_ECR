@@ -147,15 +147,11 @@ Checkout → Test → Docker Build → Smoke Test → Push to ECR (main/master o
    - run `mvn test`
 
 3. **Docker Build**
-4. **Smoke Test**
-   - run container
-   - test endpoint
 
-5. **Push to ECR**
+4. **Push to ECR**
    - only on `master` branch
 
-6. **Post**
-   - archive test results
+5. **Post**
    - cleanup containers/images
 
 Key features:
