@@ -35,8 +35,11 @@ pipeline {
 
         stage('Test') {
             steps {
-                dir("${APP_DIR}") {
-                    sh 'mvn test'
+                container('maven') {
+                    dir("${APP_DIR}") {
+                        sh 'echo "PATH=$PATH"; java -version; mvn -version'
+                        sh 'mvn test'
+                    }
                 }
             }
             post {
