@@ -52,7 +52,7 @@ pipeline {
                     echo "=========================================="
                     
                     env.IS_PRIMARY_BRANCH = (
-                        env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'master'
+                        env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'master' || env.BRANCH_NAME == NULL
                     ).toString()
 
                     echo "Branch: ${env.BRANCH_NAME}"
