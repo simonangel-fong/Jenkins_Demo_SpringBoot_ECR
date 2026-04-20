@@ -13,6 +13,7 @@ controller:
     - workflow-aggregator
     - git
     - configuration-as-code
+    - pipeline-stage-view
     - job-dsl
     - junit
 
@@ -35,8 +36,8 @@ controller:
       pipeline-job: |
         jobs:
           - script: |
-              pipelineJob('test-pipeline') {
-                description('Pipeline job created via JCasC')
+              pipelineJob('CI Job: hello-world-api') {
+                description('CI Pipeline job for project hello-world-api')
 
                 definition {
                   cpsScm {
