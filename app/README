@@ -4,7 +4,7 @@ docker build -t hello-world-api:local .
 
 docker run --rm -d --name hello-world-api -p 8081:8080 hello-world-api:local
 
-bash cicd/smoke-test.sh
+bash app/testing/smoke-test.sh
 # Starting smoke test for image: hello-world-api:local
 # Waiting for application to become ready...
 # Attempt 1/20: app not ready yet

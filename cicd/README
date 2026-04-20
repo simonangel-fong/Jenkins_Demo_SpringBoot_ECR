@@ -1,3 +1,5 @@
+- ref:
+  - https://artifacthub.io/packages/helm/jenkinsci/jenkins
 
 ```sh
 cd cicd/ci
@@ -9,7 +11,6 @@ kubectl exec --namespace default -it svc/jenkins -c jenkins -- /bin/cat /run/sec
 helm uninstall jenkins
 
 ```
-
 
 - repo
   - https://github.com/simonangel-fong/Jenkins_Demo_SpringBoot_ECR.git
