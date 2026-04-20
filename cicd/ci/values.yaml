@@ -18,7 +18,8 @@ controller:
     - aws-credentials
     - junit
     - docker-workflow
-    - amazon-ecr 
+    - amazon-ecr
+    - timestamper
 
   initializeOnce: true
 
@@ -39,7 +40,7 @@ controller:
       pipeline-job: |
         jobs:
           - script: |
-              pipelineJob('ci hello-world-api') {
+              pipelineJob('ci-pipeline-hello-world-api') {
                 description('CI Pipeline job for project hello-world-api')
 
                 definition {
