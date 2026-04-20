@@ -1,0 +1,49 @@
+controller:
+  admin:
+    username: admin
+    password: admin123
+
+  serviceType: ClusterIP
+
+  # Do not run builds on the controller
+  numExecutors: 0
+
+  installPlugins:
+    - kubernetes
+    - workflow-aggregator
+    - git
+    - configuration-as-code
+
+  initializeOnce: true
+
+  JCasC:
+    # must be true if you want Helm-defined agent pod templates
+    defaultConfig: true
+
+persistence:
+  enabled: true
+  size: 2Gi
+
+agent:
+  enabled: true
+
+  # optional tuning
+  maxRequestsPerHostStr: "32"
+  retentionTimeout: "5"
+  waitForPodSec: "120"
+
+  podTemplates:
+    maven: |
+      - name: maven
+        label: agent-maven
+        serviceAccount: jenkins
+        containers:
+          - name: maven
+            image: maven:3.9.14-eclipse-temurin-21-alpine
+            command: "/bin/sh -c"
+            args: "cat"
+            ttyEnabled: true
+            resourceRequestCpu: "500m"
+            resourceRequestMemory: "512Mi"
+            resourceLimitCpu: "1"
+            resourceLimitMemory: "1Gi"
