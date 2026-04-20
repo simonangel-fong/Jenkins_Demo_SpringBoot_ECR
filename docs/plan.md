@@ -34,14 +34,16 @@ Git push → Jenkins pipeline triggered
 ```
 ci-demo-project/
 ├── app/
-│   └── hello-world-api/   # Spring Boot app
-│       ├── src/           # Spring Boot source code
-│       ├── pom.xml        # Maven config
-│       └── Dockerfile     # multi-stage build
+│   ├── hello-world-api/    # Spring Boot app
+│   │   ├── src/            # Spring Boot source code
+│   │   ├── pom.xml         # Maven config
+│   │   └── Dockerfile      # multi-stage build
+│   └── testing/            # testing
 │
 ├── cicd/
-│   ├── Jenkinsfile         # pipeline definition
-│   └── smoke-test.sh
+│   └── ci/                 
+│         ├── Jenkinsfile     # pipeline definition
+│         └── values.yaml
 │
 ├── .gitignore
 └── README.md               # later
