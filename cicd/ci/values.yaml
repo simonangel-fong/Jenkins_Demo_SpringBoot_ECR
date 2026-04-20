@@ -13,12 +13,44 @@ controller:
     - workflow-aggregator
     - git
     - configuration-as-code
+    - job-dsl
 
   initializeOnce: true
 
   JCasC:
-    # must be true if you want Helm-defined agent pod templates
     defaultConfig: true
+    configScripts:
+      welcome-message: |
+        jenkins:
+          systemMessage: "Jenkins configured via Helm and JCasC"
+
+      jobs: |
+        jobs:
+          - script: |
+              folder('applications') {
+                description('Application build jobs')
+              }
+
+      pipeline-job: |
+        jobs:
+          - script: |
+              pipelineJob('test-pipeline') {
+                description('Pipeline job created via JCasC')
+
+                definition {
+                  cpsScm {
+                    scm {
+                      git {
+                        remote {
+                          url('https://github.com/simonangel-fong/Jenkins_Demo_SpringBoot_ECR.git')
+                        }
+                        branches('*/master')
+                      }
+                    }
+                    scriptPath('cicd/ci/Jenkinsfile')
+                  }
+                }
+              }
 
 persistence:
   enabled: true
