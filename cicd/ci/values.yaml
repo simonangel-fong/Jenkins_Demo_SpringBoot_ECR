@@ -15,6 +15,7 @@ controller:
     - configuration-as-code
     - pipeline-stage-view
     - job-dsl
+    - aws-credentials
     - junit
 
   initializeOnce: true
