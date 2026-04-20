@@ -48,15 +48,24 @@ pipeline {
             }
         }
     
-        stage('Package') {
+        stage('Docker Build') {
             steps {
-                container('maven') {
+                container('dind') {
                     dir("${APP_DIR}") {
-                        sh 'mvn clean package -DskipTests'
+                        sh '''
+                        until docker info >/dev/null 2>&1; do
+                            sleep 1
+                        done
+
+                        docker build \
+                            -t ${APP_NAME}:${BUILD_NUMBER} \
+                            -t ${APP_NAME}:${SHORT_COMMIT} \
+                            .
+                        '''
                     }
                 }
             }
-        }    
+        }   
     }
 
     post {
