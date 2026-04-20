@@ -52,7 +52,7 @@ pipeline {
                     echo "=========================================="
                     
                     env.IS_PRIMARY_BRANCH = (
-                        env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'master' || env.BRANCH_NAME == null
+                        env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'master'
                     ).toString()
 
                     echo "Branch: ${env.BRANCH_NAME}"
@@ -128,10 +128,10 @@ pipeline {
         }
 
         stage('Push to ECR') {
-            // Only push images when on master or main branch
-            when {
-                branch pattern: "(main|master)", comparator: "REGEXP"
-            }
+            // // Only push images when on master or main branch
+            // when {
+            //     branch pattern: "(main|master)", comparator: "REGEXP"
+            // }
             steps {
                 container('dind') {
                     script {
