@@ -21,7 +21,6 @@ Git push → Jenkins pipeline triggered
     → run unit tests
     → build JAR
     → build Docker image
-    → run smoke test (container)
     → push image to ECR (master branch only)
     → archive test results
     → cleanup
@@ -34,19 +33,18 @@ Git push → Jenkins pipeline triggered
 ```
 ci-demo-project/
 ├── app/
-│   ├── hello-world-api/    # Spring Boot app
-│   │   ├── src/            # Spring Boot source code
-│   │   ├── pom.xml         # Maven config
-│   │   └── Dockerfile      # multi-stage build
-│   └── testing/            # testing
+│   └── hello-world-api/    # Spring Boot app
+│       ├── src/            # Spring Boot source code
+│       ├── pom.xml         # Maven config
+│       └── Dockerfile      # multi-stage build
 │
 ├── cicd/
-│   └── ci/                 
+│   └── ci/
 │         ├── Jenkinsfile     # pipeline definition
-│         └── values.yaml
+│         └── values.yaml     # jenkins instance configuration
 │
 ├── .gitignore
-└── README.md               # later
+└── README.md
 ```
 
 ---
@@ -94,28 +92,7 @@ Done when:
 
 ---
 
-## Step 3 — Smoke Test
-
-Goal: verify container actually works
-
-- start container locally (inside Jenkins later)
-- call:
-  - `/hello` OR `/health`
-
-- fail if response not OK
-
-Optional:
-
-- use curl script (`scripts/smoke-test.sh`)
-
-Done when:
-
-- test fails if app is broken
-- test passes if app is healthy
-
----
-
-## Step 4 — AWS (ECR Setup)
+## Step 3 — AWS (ECR Setup)
 
 Goal: prepare image registry
 
@@ -132,14 +109,14 @@ Done when:
 
 ---
 
-## Step 5 — Jenkins Pipeline
+## Step 4 — Jenkins Pipeline
 
 Goal: implement CI pipeline
 
 Stages:
 
 ```txt
-Checkout → Test → Docker Build → Smoke Test → Push to ECR (main/master only) → Post/Cleanup
+Checkout → Test → Docker Build → Push to ECR (main/master only) → Post/Cleanup
 ```
 
 1. **Checkout**
@@ -184,7 +161,6 @@ Before calling it done:
 
 - [ ] unit tests run in Jenkins
 - [ ] Docker image builds successfully
-- [ ] smoke test validates container
 - [ ] image pushed to ECR (master branch only)
 - [ ] test results archived
 - [ ] pipeline cleans up resources

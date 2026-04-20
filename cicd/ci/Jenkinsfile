@@ -42,11 +42,19 @@ pipeline {
                         returnStdout: true
                     ).trim()
 
+                    echo "=========================================="
+                    echo "BRANCH DETECTION:"
+                    echo "=========================================="
+                    echo "env.BRANCH_NAME: ${env.BRANCH_NAME}"
+                    echo "env.GIT_BRANCH: ${env.GIT_BRANCH}"
+                    sh 'git rev-parse --abbrev-ref HEAD'
+                    sh 'git symbolic-ref --short HEAD || echo "Detached HEAD"'
+                    echo "=========================================="
+                    
                     env.IS_PRIMARY_BRANCH = (
                         env.BRANCH_NAME == 'main' || env.BRANCH_NAME == 'master'
                     ).toString()
 
-                    echo "=========================================="
                     echo "Branch: ${env.BRANCH_NAME}"
                     echo "Commit: ${env.SHORT_COMMIT}"
                     echo "Primary branch: ${env.IS_PRIMARY_BRANCH}"

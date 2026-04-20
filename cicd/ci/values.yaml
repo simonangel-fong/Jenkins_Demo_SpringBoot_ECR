@@ -50,7 +50,7 @@ controller:
                         remote {
                           url('https://github.com/simonangel-fong/Jenkins_Demo_SpringBoot_ECR.git')
                         }
-                        branches('*/master')
+                        branches('*')
                       }
                     }
                     scriptPath('cicd/ci/Jenkinsfile')
