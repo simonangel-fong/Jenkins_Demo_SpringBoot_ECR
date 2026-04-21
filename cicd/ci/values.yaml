@@ -30,13 +30,6 @@ controller:
         jenkins:
           systemMessage: "Jenkins configured via Helm and JCasC"
 
-      jobs: |
-        jobs:
-          - script: |
-              folder('applications') {
-                description('Application build jobs')
-              }
-
       pipeline-job: |
         jobs:
           - script: |

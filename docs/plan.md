@@ -159,12 +159,12 @@ Goal: avoid bad practices
 
 Before calling it done:
 
-- [ ] unit tests run in Jenkins
-- [ ] Docker image builds successfully
-- [ ] image pushed to ECR (master branch only)
-- [ ] test results archived
-- [ ] pipeline cleans up resources
-- [ ] no hardcoded credentials
+- [x] unit tests run in Jenkins
+- [x] Docker image builds successfully
+- [x] image pushed to ECR (master branch only)
+- [x] test results archived
+- [x] pipeline cleans up resources
+- [x] no hardcoded credentials
 
 ---
 
