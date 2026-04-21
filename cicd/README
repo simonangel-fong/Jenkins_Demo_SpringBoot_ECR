@@ -16,3 +16,4 @@ helm uninstall jenkins
   - https://github.com/simonangel-fong/Jenkins_Demo_SpringBoot_ECR.git
   - master
   - cicd/ci/Jenkinsfile
+

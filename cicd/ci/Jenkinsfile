@@ -128,26 +128,27 @@ pipeline {
         }
 
         stage('Push to ECR') {
-            // // Only push images when on master or main branch
             // when {
-            //     branch pattern: "(main|master)", comparator: "REGEXP"
+            //     expression { env.IS_PRIMARY_BRANCH == 'true' }
             // }
             steps {
                 container('dind') {
                     script {
-                        echo "Pushing image to ECR (${ECR_REGISTRY})..."
+                        echo "Pushing image to ECR (branch: ${env.DETECTED_BRANCH})..."
                         
                         retry(2) {
                             docker.withRegistry("https://${ECR_REGISTRY}", "ecr:${AWS_REGION}:${AWS_CREDENTIALS_ID}") {
                                 def img = docker.image("${IMAGE_URI}:${SHORT_COMMIT}")
                                 
-                                echo "  Pushing tag: ${SHORT_COMMIT}"
+                                echo "Pushing version tags (immutable)..."
+                                echo "  - ${IMAGE_URI}:${SHORT_COMMIT}"
                                 img.push()
                                 
-                                echo "  Pushing tag: ${BUILD_NUMBER}"
+                                echo "  - ${IMAGE_URI}:${BUILD_NUMBER}"
                                 img.push("${BUILD_NUMBER}")
                                 
-                                echo "  Pushing tag: latest"
+                                echo "Pushing release tag (mutable)..."
+                                echo "  - ${IMAGE_URI}:latest"
                                 img.push("latest")
                                 
                                 echo "✓ All tags pushed successfully to ECR"
