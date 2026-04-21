@@ -198,25 +198,15 @@ pipeline {
 
         success {
             script {
-                if (env.IS_PRIMARY_BRANCH == 'true') {
-                    echo "=========================================="
-                    echo "✅ PIPELINE SUCCESS - Image pushed to ECR:"
-                    echo "=========================================="
-                    echo "Repository: ${ECR_REPOSITORY}"
-                    echo "Tags:"
-                    echo "  - ${IMAGE_URI}:${SHORT_COMMIT}"
-                    echo "  - ${IMAGE_URI}:${BUILD_NUMBER}"
-                    echo "  - ${IMAGE_URI}:latest"
-                    echo "=========================================="
-                } else {
-                    echo "=========================================="
-                    echo "✅ PIPELINE SUCCESS - Build validated:"
-                    echo "=========================================="
-                    echo "Branch: ${env.BRANCH_NAME} (not primary)"
-                    echo "Build, test, and smoke test all passed."
-                    echo "Image push skipped (only runs on main/master)."
-                    echo "=========================================="
-                }
+                echo "=========================================="
+                echo "✅ PIPELINE SUCCESS - Image pushed to ECR:"
+                echo "=========================================="
+                echo "Repository: ${ECR_REPOSITORY}"
+                echo "Tags:"
+                echo "  - ${IMAGE_URI}:${SHORT_COMMIT}"
+                echo "  - ${IMAGE_URI}:${BUILD_NUMBER}"
+                echo "  - ${IMAGE_URI}:latest"
+                echo "=========================================="
             }
         }
 
@@ -225,11 +215,6 @@ pipeline {
             echo "❌ PIPELINE FAILURE"
             echo "=========================================="
             echo "Check the logs above for details."
-            echo "Common issues:"
-            echo "  - Unit tests failed (see Test stage)"
-            echo "  - Docker build failed (check Dockerfile)"
-            echo "  - Smoke test failed (container/app not responding)"
-            echo "  - ECR push failed (AWS credentials or network)"
             echo "=========================================="
         }
 
